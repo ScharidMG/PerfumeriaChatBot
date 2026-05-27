@@ -1138,7 +1138,7 @@ async function handleMenu(num, txt) {
 // ── OPCIÓN 1: FAQ ────────────────────────────────
 async function showFAQ() {
   // Asegurar que los datos estén cargados
-  if (faqData.length === 0) await loadSheetsData();
+  await loadSheetsData();
   state = 'faq';
   localStorage.setItem(LS_STATE, state);
 
@@ -1222,7 +1222,7 @@ async function showPromociones() {
 
 // ── OPCIÓN 5: MEDIOS DE PAGO ─────────────────────
 async function showPayments() {
-  if (payData.length === 0) await loadSheetsData();
+  await loadSheetsData();
   state = 'faq_respuesta';
   localStorage.setItem(LS_STATE, state);
 
