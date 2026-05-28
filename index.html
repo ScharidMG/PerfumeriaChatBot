@@ -758,6 +758,7 @@
       Los datos se cargan desde Google Sheets de forma automática.<br>
       Aquí puedes limpiar el historial de conversación.
     </div>
+    
 
     <button class="config-clear-btn" onclick="clearChat()">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M9 3v1H4v2h1v13a2 2 0 002 2h10a2 2 0 002-2V6h1V4h-5V3H9zm0 5h2v9H9V8zm4 0h2v9h-2V8z"/></svg>
@@ -782,13 +783,16 @@ const LS_THEME  = 'saoco_theme';
 const SHEETS_ID   = '1Em_rLq2qfIloRVBBhzS0PbGCp-nlpLBMLh5qZBWbkzg';
 const GID_FAQ     = '326911256';
 const GID_PAGOS   = '1467806632';
+const GID_IMAGEN_MAYORISTA = '188485634';
 
 const WA_NUMBER = '3012376386';
 const WA_MSG    = 'Hola, me interesa recibir asesoría de SAOCO PERFUMES.';
 
+//Variables globales
 let state    = 'menu';
 let faqData  = [];     // [{pregunta, respuesta}]
 let payData  = [];     // [{medio, detalle}]
+let mayoristaImg = '';
 let botBusy  = false;
 let isLight  = false;
 
@@ -821,46 +825,58 @@ function toggleTheme() {
 // Usa el endpoint de visualización de Google que siempre permite CORS
 // siempre que la hoja sea pública ("Cualquier persona con el enlace puede ver")
 
-function sheetUrl(gid) {
-  return `https://docs.google.com/spreadsheets/d/${SHEETS_ID}/gviz/tq?gid=${gid}`;
+function gvizUrl(gid) {
+  return `https://docs.google.com/spreadsheets/d/${SHEETS_ID}/gviz/tq?tqx=out:json&gid=${gid}`;
 }
 
-async function fetchSheet(gid) {
+async function fetchGviz(gid) {
   try {
-    const res = await fetch(sheetUrl(gid));
-    const text = await res.text();
-
-    const json = JSON.parse(
-      text.substring(47).slice(0, -2)
+    const res = await fetch(gvizUrl(gid));
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const raw = await res.text();
+    // Google devuelve: /*O_o*/\ngoogle.visualization.Query.setResponse({...});
+    // Extraemos el JSON entre el primer { y el último }
+    const json = raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1);
+    const data = JSON.parse(json);
+    // data.table.rows → array de filas
+    // cada fila: { c: [{v: valor}, {v: valor}, ...] }
+    const rows = data.table.rows || [];
+    return rows.map(row =>
+      (row.c || []).map(cell => (cell && cell.v != null ? String(cell.v) : ''))
     );
-
-    return json.table.rows.map(r =>
-      r.c.map(c => c ? c.v : '')
-    );
-
   } catch (e) {
-    console.error('Error cargando hoja:', e);
+    console.warn('gviz fetch failed gid=' + gid, e.message);
     return null;
   }
 }
 
 async function loadSheetsData() {
-  const [faqRows, pagosRows] = await Promise.all([
-    fetchSheet(GID_FAQ),
-fetchSheet(GID_PAGOS),
+  const [faqRows, pagosRows, imageRows] = await Promise.all([
+    fetchGviz(GID_FAQ),
+    fetchGviz(GID_PAGOS),
+    fetchGviz(GID_IMAGEN_MAYORISTA),
   ]);
 
   if (faqRows && faqRows.length > 0) {
     faqData = faqRows
+      .slice(1)
       .map(r => ({ pregunta: (r[0] || '').trim(), respuesta: (r[1] || '').trim() }))
       .filter(f => f.pregunta && f.respuesta);
   }
 
   if (pagosRows && pagosRows.length > 0) {
     payData = pagosRows
+      .slice(1)
       .map(r => ({ medio: (r[0] || '').trim(), detalle: (r[1] || '').trim() }))
       .filter(p => p.medio);
   }
+
+  if (imageRows && imageRows.length > 0) {
+    const imageId = (imageRows[0][0] || '').trim();
+    mayoristaImg = `https://lh3.googleusercontent.com/d/${imageId}`;
+ 
+  }
+
 
 }
 
@@ -945,8 +961,15 @@ function renderBubble(role, content, time, isFirst, isImage, animate, isWA) {
   if (role === 'bot') inner += `<div class="bot-avatar-msg">🌸</div>`;
 
   if (isImage) {
-    inner += `<div class="bubble-image"><img src="${content}" alt="SAOCO" loading="lazy"/></div>`;
-  } else if (isWA) {
+  inner += `
+    <div class="bubble bot">
+      <div class="bubble-image">
+        <img src="${content}" alt="SAOCO" loading="lazy">
+      </div>
+      <span class="timestamp">${time}</span>
+    </div>
+  `;
+} else if (isWA) {
     const url = `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(WA_MSG)}`;
     inner += `
       <div class="bubble bot special">
@@ -1180,11 +1203,22 @@ async function showCatalog() {
 async function showMayorista() {
   state = 'mayorista';
   localStorage.setItem(LS_STATE, state);
-  const imgUrl = 'https://images.unsplash.com/photo-1541643600914-78b084683702?w=400&q=80';
-  await botSaySequence([
-    { text: imgUrl, delay: 600, isImage: true },
-    { text: '🤝 Clientes Mayoristas SAOCO PERFUMES\n\n¿Quieres que un asesor te contacte?\n\n1. Sí\n2. No', delay: 700 },
-  ]);
+  const sequence = [];
+
+if (mayoristaImg) {
+  sequence.push({
+    text: mayoristaImg,
+    delay: 600,
+    isImage: true
+  });
+}
+
+sequence.push({
+  text: '🤝 Clientes Mayoristas SAOCO PERFUMES\n\n¿Quieres que un asesor te contacte?\n\n1. Sí\n2. No',
+  delay: 700
+});
+
+await botSaySequence(sequence);
 }
 
 async function handleMayorista(num, txt) {
@@ -1267,5 +1301,6 @@ function autoResizeTextarea() {
   });
 }
 </script>
+
 </body>
 </html>
