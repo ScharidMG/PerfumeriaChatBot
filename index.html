@@ -1100,10 +1100,10 @@ function hideTyping() {
   document.getElementById('typing-indicator').classList.remove('visible');
 }
 
-function botSay(text, delay = 800, isImage = false, isWA = false) {
+async function botSay(text, delay = 800, isImage = false, isWA = false) {
   return new Promise(resolve => {
     showTyping();
-    setTimeout(() => {
+    setTimeout(async() => {
       hideTyping();
       const msgs = loadMessages();
       const last = msgs[msgs.length - 1];
@@ -1111,7 +1111,7 @@ function botSay(text, delay = 800, isImage = false, isWA = false) {
       const time = nowTime();
       msgs.push({ role: 'bot', content: text, time, isImage, isWA });
       saveMessages(msgs);
-      renderBubble('bot', text, time, isFirst, isImage, true, isWA);
+      await renderBubble('bot', text, time, isFirst, isImage, true, isWA);
       scrollBottom();
       resolve();
     }, delay);
