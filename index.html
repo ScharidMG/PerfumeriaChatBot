@@ -1027,7 +1027,7 @@ async function getWhatsAppURL() {
   await loadSheetsData();
 
   // dejar solo números
-  const cleanNumber = waNumber.replace(/\D/g, '');
+  const cleanNumber = String(waNumber).replace(/\D/g, '');
 
   return `https://wa.me/${cleanNumber}?text=${encodeURIComponent(WA_MSG)}`;
 }
