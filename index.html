@@ -1340,25 +1340,28 @@ async function showPromociones() {
   const sequence = [];
   promoData.forEach(promo => {
 
-    // Mostrar imagen si existe
-    if (promo.imagen) {
-      sequence.push({
-        text: `https://lh3.googleusercontent.com/d/${promo.imagen}`,
-        delay: 600,
-        isImage: true
-      });
-    }
-
-    // Mostrar texto de la promo
-    sequence.push({
-      text:
-`🎁 ${promo.titulo}
-
-${promo.descripcion}`,
-      delay: 700
-    });
-
+  // Título
+  sequence.push({
+    text: `🎁 ${promo.titulo}`,
+    delay: 600
   });
+
+  // Imagen (si existe)
+  if (promo.imagen) {
+    sequence.push({
+      text: `https://lh3.googleusercontent.com/d/${promo.imagen}`,
+      delay: 300,
+      isImage: true
+    });
+  }
+
+  // Descripción
+  sequence.push({
+    text: promo.descripcion,
+    delay: 400
+  });
+
+});
 
   sequence.push({
     text: '━━━━━━━━━━━━━━━\n1. Volver al menú\n2. Salir',
@@ -1366,25 +1369,6 @@ ${promo.descripcion}`,
   });
 
   await botSaySequence(sequence);
-}
-
-// ── OPCIÓN 5: MEDIOS DE PAGO ─────────────────────
-async function showPayments() {
-  await loadSheetsData();
-  state = 'faq_respuesta';
-  localStorage.setItem(LS_STATE, state);
-
-  let txt = '💳 Medios de Pago SAOCO PERFUMES\n\n';
-  if (payData.length === 0) {
-    txt += 'No hay medios de pago configurados.\nContacta a un asesor para más información.';
-  } else {
-    txt += payData.map(p => `💳 ${p.medio}\n${p.detalle}`).join('\n\n');
-  }
-
-  await botSaySequence([
-    { text: txt, delay: 700 },
-    { text: '━━━━━━━━━━━━━━━\n1. Volver al menú\n2. Salir', delay: 500 },
-  ]);
 }
 
 // ── OPCIÓN 5: ASESOR ─────────────────────────────
